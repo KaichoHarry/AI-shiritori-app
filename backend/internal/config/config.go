@@ -10,6 +10,9 @@ import (
 type Config struct {
 	Port string
 
+	// FrontendOrigin はCORSで許可するフロントエンドのオリジン。
+	FrontendOrigin string
+
 	DatabaseURL string
 
 	JWTAccessSecret  string
@@ -40,6 +43,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:             getEnv("PORT", "8080"),
+		FrontendOrigin:   getEnv("FRONTEND_ORIGIN", "http://localhost:3000"),
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		JWTAccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
 		JWTRefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),

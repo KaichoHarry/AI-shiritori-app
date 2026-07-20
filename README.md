@@ -30,12 +30,15 @@
   - 文末の句読点除去リストで全角の「！」「？」を書き忘れ(半角を誤って重複記載)、文末に記号が残るバグ
   - 上記を機に、モード3の文末音抽出方式をユーザー指示で「末尾から削る」方式から「末尾から遡ってひらがな/カタカナ/半角・全角英字を探す」方式に変更。モード1/2の入力・AI応答もひらがな/カタカナのみに制限する仕様に変更した
   - 非致命的エラー(辞書に無い語・不正な文字種)の理由をAPIレスポンスで`word_not_found`に決め打ちしていたハンドラーのバグ
+- フロントエンド(Next.js 16 + TypeScript + Tailwind CSS)の実装。ログイン/新規登録/パスワード再設定申請、ダッシュボード、設定、ソロプレイ/AI対戦/フリートークの各プレイ画面、履歴一覧・詳細まで一式。scaffold(`create-next-app`)されたプロジェクトが「このNext.jsバージョンは学習データと異なる可能性がある」という警告(`AGENTS.md`)を出していたため、実装前に`node_modules/next/dist/docs/`配下のApp Routerドキュメントを実際に読んで最新のAPIを確認した
+- ブラウザ操作ツール(claude-in-chrome)を使って実際に一通りの画面遷移(登録→ログイン→ダッシュボード→各プレイ画面→履歴)を操作し、以下の不具合をAIが自ら発見・診断・修正した
+  - バックエンド(Go)にCORS設定が無く、ブラウザからのAPI呼び出しが全てブロックされていた問題(`go-chi/cors`を追加し、`FRONTEND_ORIGIN`環境変数で許可オリジンを設定できるようにした)
 
 いずれも、要件が曖昧な部分は実装前にユーザーへ確認を取りながら進めており、AIが独断で仕様を決めた箇所はない。また、AI自身の実装ミス・診断過程も含め、都度検証しながら進めている。
 
 ## 技術スタック
 
-- フロントエンド: Next.js (React) + TypeScript
+- フロントエンド: Next.js 16 (React 19) + TypeScript + Tailwind CSS
 - バックエンド: Go
 - データベース: PostgreSQL
 - 外部AI API: Google Gemini API
@@ -61,7 +64,7 @@
    cp .env.example .env
    ```
 
-2. postgresのみ起動する(backend/frontend実装前の現段階)
+2. postgresを起動する
 
    ```
    docker-compose up -d postgres
@@ -75,7 +78,17 @@
 
    ロールバックする場合は `down` を使う(全て戻す場合は `down -all`)。
 
-4. backend/frontendの実装が揃ったら、以下で全サービスを一括起動する
+4. ローカルでbackend/frontendをそれぞれ直接起動して開発する場合
+
+   ```
+   # backend (http://localhost:8080)
+   cd backend && go run ./cmd/server
+
+   # frontend (http://localhost:3000、別ターミナルで)
+   cd frontend && npm install && npm run dev
+   ```
+
+5. Dockerで全サービスを一括起動する場合
 
    ```
    docker-compose up
@@ -84,8 +97,6 @@
    - frontend: http://localhost:3000
    - backend: http://localhost:8080
    - postgres: localhost:5432
-
-> 現時点ではbackend/frontendの実装がまだなく、`docker-compose up`(postgres以外を含む一括起動)はビルドに失敗する。実装が進み次第、このREADMEも更新する。
 
 ## パスワード再設定の設計について
 
