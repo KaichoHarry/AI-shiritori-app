@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shiritori
+      POSTGRES_PASSWORD: shiritori
+      POSTGRES_DB: shiritori
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # backend/postgres は同一Dockerネットワーク内なので、
+      # .envのDATABASE_URLがlocalhostを指していてもここで上書きする
+      DATABASE_URL: postgres://shiritori:shiritori@postgres:5432/shiritori?sslmode=disable
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    # TODO: バックエンド実装後、ヘルスチェックやマイグレーション自動実行の要否を検討する
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      # TODO: フロントエンド実装時に、実際に使う環境変数名(API接続先など)に合わせて見直す
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
