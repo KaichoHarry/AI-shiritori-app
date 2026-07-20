@@ -25,24 +25,11 @@ func testClient(t *testing.T) *Client {
 		model = "gemini-3.5-flash"
 	}
 
-	c, err := New(context.Background(), apiKey, model, 10*time.Second)
+	c, err := New(context.Background(), apiKey, model, 20*time.Second)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	return c
-}
-
-func TestGenerateWordIntegration(t *testing.T) {
-	c := testClient(t)
-
-	word, err := c.GenerateWord(context.Background(), "り", []string{"りんご"}, DifficultyNormal)
-	if err != nil {
-		t.Fatalf("GenerateWord: %v", err)
-	}
-	if word == "" {
-		t.Fatal("GenerateWord returned empty word")
-	}
-	t.Logf("generated word: %s", word)
 }
 
 func TestGenerateReplyIntegration(t *testing.T) {

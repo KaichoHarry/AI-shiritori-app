@@ -17,7 +17,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
+      <div className="flex flex-1 items-center justify-center p-8 text-muted-foreground">
         読み込み中...
       </div>
     );

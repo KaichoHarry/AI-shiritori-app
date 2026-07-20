@@ -2,42 +2,53 @@ package game
 
 import (
 	"context"
-	"errors"
 	"math/rand"
 
-	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/gemini"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/shiritori"
 )
 
-// Reason はDESIGN.md 7.4節のreason値。AI側の理由(ai_*)は明示的な一覧が
-// word_not_found/timeout/generation_failedしか無かったため、プレイヤー側の
-// 判定理由と対応させたai_ends_with_n等をClaude Codeの判断で追加している。
+// Reason はDESIGN.md 7.4節のreason値。
+//
+// AI側の単語は辞書(internal/shiritori.RandomWord)から選ぶため接続・重複・「ん」終端
+// といった不正な語を返すことは無く、AI敗北の理由は「その頭文字の候補が辞書から尽きた」
+// (ai_word_not_found)か「わざと失敗する確率に当たった」(ai_generation_failed)の
+// いずれかのみになる。
 type Reason string
 
 const (
-	ReasonNone                 Reason = ""
-	ReasonWordNotFound         Reason = "word_not_found"
-	ReasonEndsWithN            Reason = "ends_with_n"
-	ReasonConnectionMismatch   Reason = "connection_mismatch"
-	ReasonDuplicateWord        Reason = "duplicate_word"
-	ReasonAIWordNotFound       Reason = "ai_word_not_found"
-	ReasonAIEndsWithN          Reason = "ai_ends_with_n"
-	ReasonAIConnectionMismatch Reason = "ai_connection_mismatch"
-	ReasonAIDuplicateWord      Reason = "ai_duplicate_word"
-	ReasonAITimeout            Reason = "ai_timeout"
-	ReasonAIGenerationFailed   Reason = "ai_generation_failed"
+	ReasonNone               Reason = ""
+	ReasonWordNotFound       Reason = "word_not_found"
+	ReasonEndsWithN          Reason = "ends_with_n"
+	ReasonConnectionMismatch Reason = "connection_mismatch"
+	ReasonDuplicateWord      Reason = "duplicate_word"
+	ReasonAIWordNotFound     Reason = "ai_word_not_found"
+	ReasonAIGenerationFailed Reason = "ai_generation_failed"
 )
 
-// intentionalFailureProbability はDESIGN.md 5.1節「AIがわざと失敗する確率」の暫定値。
-// 易しい=20%は設計書の例をそのまま採用し、普通・難しいはClaude Codeが妥当な値を暫定的に設定した。
-func intentionalFailureProbability(difficulty string) float64 {
+// モード2のAI側は、Gemini APIを使わず辞書(internal/shiritori.RandomWord)からの
+// ランダム選択に決定的に切り替えている。理由: Gemini経由だとAIが接続に失敗しやすく
+// しりとりがすぐ終わってしまい、ユーザーからより長く続くようにしたいと要望された。
+// 難易度ごとの挙動(ユーザー確認済み):
+//   - hard:   常に辞書からその頭文字・「ん」以外で終わる語を選び続ける
+//     (その頭文字の候補が尽きたときのみAI側の負けとして終了)
+//   - normal: 49ラリーまではhardと同じ。50ラリー目以降は毎ターン1%の確率でわざと負ける
+//   - easy:   毎ターン1%の確率でわざと負ける(hard/normalと同じ辞書選択に加えて)
+const (
+	aiIntentionalFailureRate           = 0.01
+	aiNormalDifficultyGracePeriodRally = 49
+)
+
+func shouldAIIntentionallyFail(difficulty string, aiRally int) bool {
 	switch difficulty {
-	case string(gemini.DifficultyEasy):
-		return 0.2
-	case string(gemini.DifficultyHard):
-		return 0.02
-	default:
-		return 0.08
+	case "easy":
+		return rand.Float64() < aiIntentionalFailureRate
+	case "normal":
+		if aiRally > aiNormalDifficultyGracePeriodRally {
+			return rand.Float64() < aiIntentionalFailureRate
+		}
+		return false
+	default: // hard、または未指定
+		return false
 	}
 }
 
@@ -133,38 +144,31 @@ func (s *Service) playAITurn(ctx context.Context, session *Session, playerSeq in
 		difficulty = *session.Difficulty
 	}
 
-	if rand.Float64() < intentionalFailureProbability(difficulty) {
+	aiWordsSoFar, err := s.repo.CountWordsBySpeaker(ctx, session.ID, SpeakerAI)
+	if err != nil {
+		return nil, err
+	}
+	aiRally := aiWordsSoFar + 1 // これから出す単語のラリー番号(1始まり)
+
+	if shouldAIIntentionallyFail(difficulty, aiRally) {
 		return s.finishAsPlayerWin(ctx, session.ID, ReasonAIGenerationFailed, playerWordView)
 	}
 
-	usedWords := make([]string, 0, len(usedReadings))
-	for reading := range usedReadings {
-		usedWords = append(usedWords, reading)
-	}
-
-	aiWord, err := s.gemini.GenerateWord(ctx, shiritori.LastSound(playerReading), usedWords, gemini.Difficulty(difficulty))
-	if err != nil {
-		reason := ReasonAIGenerationFailed
-		if errors.Is(err, context.DeadlineExceeded) {
-			reason = ReasonAITimeout
-		}
-		return s.finishAsPlayerWin(ctx, session.ID, reason, playerWordView)
-	}
-
-	aiJudge := shiritori.Judge(aiWord, playerReading, usedReadings)
-	if !aiJudge.Accepted {
-		return s.finishAsPlayerWin(ctx, session.ID, mapAIReason(aiJudge.Reason), playerWordView)
+	aiReading, found := shiritori.RandomWord(shiritori.LastSound(playerReading), usedReadings)
+	if !found {
+		// その頭文字から始まり「ん」で終わらない未使用語が辞書に無くなった場合、AIの負け。
+		return s.finishAsPlayerWin(ctx, session.ID, ReasonAIWordNotFound, playerWordView)
 	}
 
 	aiSeq := playerSeq + 1
-	if err := s.repo.AddWord(ctx, session.ID, aiSeq, SpeakerAI, aiWord, aiJudge.Reading); err != nil {
+	if err := s.repo.AddWord(ctx, session.ID, aiSeq, SpeakerAI, aiReading, aiReading); err != nil {
 		return nil, err
 	}
 
 	return &WordResult{
 		Accepted:   true,
 		PlayerWord: playerWordView,
-		AIWord:     &WordView{Word: aiWord, Reading: aiJudge.Reading},
+		AIWord:     &WordView{Word: aiReading, Reading: aiReading},
 		Status:     StatusInProgress,
 	}, nil
 }
@@ -189,21 +193,6 @@ func nonFatalMessage(reason shiritori.Reason, rawWord string) string {
 		return "ひらがな・カタカナのみで入力してください。"
 	default:
 		return "「" + rawWord + "」という言葉は辞書に見つかりませんでした。別の言葉を入力してください。"
-	}
-}
-
-func mapAIReason(r shiritori.Reason) Reason {
-	switch r {
-	case shiritori.ReasonWordNotFound:
-		return ReasonAIWordNotFound
-	case shiritori.ReasonEndsWithN:
-		return ReasonAIEndsWithN
-	case shiritori.ReasonConnectionMismatch:
-		return ReasonAIConnectionMismatch
-	case shiritori.ReasonDuplicateWord:
-		return ReasonAIDuplicateWord
-	default:
-		return ReasonAIGenerationFailed
 	}
 }
 

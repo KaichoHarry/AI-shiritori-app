@@ -1,8 +1,13 @@
 "use client";
 
+import { KeyRound, Mail, Send } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { ApiError, requestPasswordReset } from "@/lib/api";
 
 export default function PasswordResetPage() {
@@ -26,57 +31,68 @@ export default function PasswordResetPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-center text-2xl font-bold text-zinc-900">
-          パスワード再設定
-        </h1>
-
-        {done ? (
-          <div className="space-y-4 text-center text-sm text-zinc-700">
-            <p>
-              申請を受け付けました。管理者の承認をお待ちください。承認され次第、登録済みのメールアドレスに新しいパスワードが届きます。
-            </p>
-            <Link href="/login" className="text-zinc-900 underline">
-              ログイン画面に戻る
-            </Link>
+    <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+            <KeyRound className="size-8" />
           </div>
-        ) : (
-          <>
-            <p className="text-sm text-zinc-600">
-              登録済みのメールアドレスを入力してください。管理者の承認後、新しいパスワードがメールで届きます。
-            </p>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  メールアドレス
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none"
-                />
-              </div>
+          <h1 className="text-4xl font-bold tracking-tight">パスワード再設定</h1>
+        </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 disabled:opacity-50"
+        <div className="rounded-2xl bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm">
+          {done ? (
+            <div className="space-y-6 text-center text-sm text-muted-foreground">
+              <p>
+                申請を受け付けました。管理者の承認をお待ちください。承認され次第、登録済みのメールアドレスに新しいパスワードが届きます。
+              </p>
+              <Link
+                href="/login"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full")}
               >
-                {submitting ? "送信中..." : "申請する"}
-              </button>
-            </form>
-            <p className="text-center text-sm text-zinc-600">
-              <Link href="/login" className="hover:underline">
                 ログイン画面に戻る
               </Link>
-            </p>
-          </>
-        )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                登録済みのメールアドレスを入力してください。管理者の承認後、新しいパスワードがメールで届きます。
+              </p>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="email">メールアドレス</Label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-11 pl-10"
+                      placeholder="example@email.com"
+                    />
+                  </div>
+                </div>
+
+                {error && <p className="text-sm text-destructive">{error}</p>}
+
+                <div className="space-y-3">
+                  <Button type="submit" disabled={submitting} className="h-11 w-full">
+                    <Send />
+                    {submitting ? "送信中..." : "申請する"}
+                  </Button>
+                  <Link
+                    href="/login"
+                    className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full")}
+                  >
+                    ログイン画面に戻る
+                  </Link>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

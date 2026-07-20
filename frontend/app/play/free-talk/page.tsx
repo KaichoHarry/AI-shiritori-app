@@ -1,10 +1,14 @@
 "use client";
 
+import { Bot, Send, Square, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   ApiError,
   createSession,
@@ -20,7 +24,7 @@ function FreeTalkPlay() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [finished, setFinished] = useState<string | null>(null);
+  const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -55,7 +59,7 @@ function FreeTalkPlay() {
         ]);
       }
       if (res.status === "finished") {
-        setFinished(res.result ?? "ended");
+        setFinished(true);
       }
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "通信エラーが発生しました");
@@ -68,54 +72,67 @@ function FreeTalkPlay() {
     if (!sessionId) return;
     try {
       await authFetch((token) => endSession(token, sessionId));
-      setFinished("ended_by_user");
+      setFinished(true);
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "終了に失敗しました");
     }
   }
 
-  if (loading) return <p className="text-zinc-500">準備中...</p>;
+  if (loading) {
+    return (
+      <p className="text-center text-sm text-muted-foreground">準備中...</p>
+    );
+  }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         {messages.length === 0 && (
-          <p className="text-center text-sm text-zinc-400">
-            最初のメッセージを送ってみましょう(ひらがな・カタカナ・英字で終わる文にしてください)
+          <p className="pt-12 text-center text-sm text-muted-foreground">
+            最初のメッセージを送ってみましょう
+            <br />
+            (ひらがな・カタカナ・英字で終わる文にしてください)
           </p>
         )}
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`flex ${m.speaker === "user" ? "justify-end" : "justify-start"}`}
+            className={cn(
+              "flex items-end gap-2",
+              m.speaker === "user" ? "justify-end" : "justify-start",
+            )}
           >
+            {m.speaker === "ai" && (
+              <Bot className="mb-1 size-5 shrink-0 text-blue-600" />
+            )}
             <div
-              className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+              className={cn(
+                "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                 m.speaker === "user"
-                  ? "bg-zinc-900 text-white"
-                  : "bg-blue-50 text-zinc-900"
-              }`}
+                  ? "rounded-br-md bg-primary text-primary-foreground"
+                  : "rounded-bl-md bg-blue-50 text-foreground",
+              )}
             >
               {m.content}
             </div>
+            {m.speaker === "user" && (
+              <User className="mb-1 size-5 shrink-0 text-muted-foreground" />
+            )}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
       {finished ? (
-        <div className="mt-4 space-y-3 text-center">
-          <p className="font-medium text-zinc-900">会話が終了しました</p>
-          <div className="flex justify-center gap-4">
-            <Link
-              href="/play/free-talk"
-              className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700"
-            >
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
+          <p className="text-sm font-medium">会話が終了しました</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <Link href="/play/free-talk" className={cn(buttonVariants(), "h-10")}>
               もう一度話す
             </Link>
             <Link
               href="/dashboard"
-              className="rounded border border-zinc-300 px-4 py-2 text-zinc-700 hover:bg-zinc-100"
+              className={cn(buttonVariants({ variant: "outline" }), "h-10")}
             >
               ダッシュボードへ
             </Link>
@@ -127,35 +144,33 @@ function FreeTalkPlay() {
             e.preventDefault();
             handleSubmit();
           }}
-          className="mt-4 flex gap-2"
+          className="flex gap-2"
         >
-          <input
+          <Input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="メッセージを入力"
-            className="flex-1 rounded border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none"
+            className="h-11"
             autoFocus
           />
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 disabled:opacity-50"
-          >
-            送信
-          </button>
-          <button
+          <Button type="submit" disabled={submitting} size="icon-lg" aria-label="送信">
+            <Send />
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="icon-lg"
+            aria-label="終了する"
             onClick={handleEnd}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
           >
-            終了する
-          </button>
+            <Square />
+          </Button>
         </form>
       )}
 
       {errorMessage && (
-        <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
+        <p className="text-center text-sm text-destructive">{errorMessage}</p>
       )}
     </div>
   );
@@ -164,10 +179,8 @@ function FreeTalkPlay() {
 export default function FreeTalkPlayPage() {
   return (
     <RequireAuth>
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8">
-        <h1 className="mb-6 text-center text-2xl font-bold text-zinc-900">
-          フリートーク
-        </h1>
+      <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-10">
+        <h1 className="mb-6 text-center text-xl font-semibold">フリートーク</h1>
         <FreeTalkPlay />
       </div>
     </RequireAuth>

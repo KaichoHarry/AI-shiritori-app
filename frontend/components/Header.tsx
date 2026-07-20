@@ -1,44 +1,64 @@
 "use client";
 
+import { LayoutGrid, LogOut, ScrollText, Settings } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/AuthProvider";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "ダッシュボード", icon: LayoutGrid },
+  { href: "/settings", label: "設定", icon: Settings },
+  { href: "/history", label: "履歴", icon: ScrollText },
+];
 
 export function Header() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   if (!user) return null;
 
   return (
-    <header className="border-b border-zinc-200 bg-white">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-        <Link href="/dashboard" className="text-lg font-bold text-zinc-900">
+    <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+        <Link href="/dashboard" className="text-base font-semibold tracking-tight">
           しりとりアプリ
         </Link>
-        <nav className="flex items-center gap-4 text-sm text-zinc-600">
-          <Link href="/dashboard" className="hover:text-zinc-900">
-            ダッシュボード
-          </Link>
-          <Link href="/settings" className="hover:text-zinc-900">
-            設定
-          </Link>
-          <Link href="/history" className="hover:text-zinc-900">
-            履歴
-          </Link>
-          <span className="text-zinc-400">|</span>
-          <span>{user.display_name}さん</span>
-          <button
-            type="button"
+
+        <nav className="flex items-center gap-1">
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  buttonVariants({
+                    variant: active ? "secondary" : "ghost",
+                    size: "sm",
+                  }),
+                  !active && "text-muted-foreground",
+                )}
+              >
+                <Icon />
+                <span className="hidden sm:inline">{label}</span>
+              </Link>
+            );
+          })}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="ログアウト"
             onClick={() => {
               logout();
               router.replace("/login");
             }}
-            className="rounded border border-zinc-300 px-2 py-1 hover:bg-zinc-100"
           >
-            ログアウト
-          </button>
+            <LogOut />
+          </Button>
         </nav>
       </div>
     </header>

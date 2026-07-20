@@ -15,7 +15,7 @@ export default function Home() {
   }, [loading, user, router]);
 
   return (
-    <div className="flex flex-1 items-center justify-center text-zinc-500">
+    <div className="flex flex-1 items-center justify-center text-muted-foreground">
       読み込み中...
     </div>
   );

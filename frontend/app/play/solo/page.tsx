@@ -1,10 +1,14 @@
 "use client";
 
+import { Send, Trophy, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { ApiError, createSession, submitWord } from "@/lib/api";
 import type { WordView } from "@/lib/types";
 
@@ -15,7 +19,7 @@ function SoloPlay() {
   const [history, setHistory] = useState<WordView[]>([]);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [gameOver, setGameOver] = useState<{ reason?: string } | null>(null);
+  const [gameOver, setGameOver] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +52,7 @@ function SoloPlay() {
         if (res.player_word) {
           setHistory((h) => [...h, res.player_word!]);
         }
-        setGameOver({ reason: res.reason });
+        setGameOver(true);
       }
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "通信エラーが発生しました");
@@ -57,30 +61,35 @@ function SoloPlay() {
     }
   }
 
-  if (loading) return <p className="text-zinc-500">準備中...</p>;
+  if (loading) {
+    return (
+      <p className="text-center text-sm text-muted-foreground">準備中...</p>
+    );
+  }
 
   if (gameOver) {
     return (
-      <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold text-zinc-900">ゲームオーバー</h2>
-        <p className="text-zinc-600">使った単語数: {history.length}</p>
-        <ol className="mx-auto max-w-xs space-y-1 text-left text-sm text-zinc-700">
+      <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-black/5">
+        <Trophy className="mx-auto mb-4 size-10 text-muted-foreground" />
+        <h2 className="text-xl font-bold">ゲームオーバー</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          使った単語数: {history.length}
+        </p>
+        <ol className="mt-6 space-y-2 text-left text-sm">
           {history.map((w, i) => (
-            <li key={i}>
-              {i + 1}. {w.word}({w.reading})
+            <li key={i} className="text-muted-foreground">
+              {i + 1}. <span className="text-foreground">{w.word}</span>
+              <span className="ml-1">({w.reading})</span>
             </li>
           ))}
         </ol>
-        <div className="flex justify-center gap-4">
-          <Link
-            href="/play/solo"
-            className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700"
-          >
+        <div className="mt-8 flex justify-center gap-3">
+          <Link href="/play/solo" className={cn(buttonVariants(), "h-10")}>
             もう一度遊ぶ
           </Link>
           <Link
             href="/dashboard"
-            className="rounded border border-zinc-300 px-4 py-2 text-zinc-700 hover:bg-zinc-100"
+            className={cn(buttonVariants({ variant: "outline" }), "h-10")}
           >
             ダッシュボードへ
           </Link>
@@ -90,40 +99,43 @@ function SoloPlay() {
   }
 
   return (
-    <div className="space-y-6 text-center">
-      <div>
-        <p className="text-sm text-zinc-500">直前の単語</p>
-        <p className="text-3xl font-bold text-zinc-900">
-          {lastWord ? lastWord.word : "最初の単語を入力してください"}
+    <div className="mx-auto w-full max-w-md space-y-10">
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-black/5">
+        <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <User className="size-3.5" />
+          直前の単語
+        </p>
+        <p className="mt-4 text-3xl font-bold">
+          {lastWord ? lastWord.word : "最初の単語をどうぞ"}
         </p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-        className="flex justify-center gap-2"
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="ひらがな・カタカナで入力"
-          className="w-64 rounded border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none"
-          autoFocus
-        />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 disabled:opacity-50"
+      <div className="space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex gap-2"
         >
-          送信
-        </button>
-      </form>
+          <Input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="ひらがな・カタカナで入力"
+            className="h-11"
+            autoFocus
+          />
+          <Button type="submit" disabled={submitting} size="icon-lg" aria-label="送信">
+            <Send />
+          </Button>
+        </form>
 
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {errorMessage && (
+          <p className="text-center text-sm text-destructive">{errorMessage}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -131,10 +143,8 @@ function SoloPlay() {
 export default function SoloPlayPage() {
   return (
     <RequireAuth>
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-8">
-        <h1 className="mb-8 text-center text-2xl font-bold text-zinc-900">
-          ソロプレイ
-        </h1>
+      <div className="flex min-h-[calc(100vh-3.5rem)] flex-col justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-16">
+        <h1 className="mb-10 text-center text-xl font-semibold">ソロプレイ</h1>
         <SoloPlay />
       </div>
     </RequireAuth>

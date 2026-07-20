@@ -116,6 +116,16 @@ func (r *Repository) ListWords(ctx context.Context, sessionID string) ([]*Word, 
 	return words, rows.Err()
 }
 
+// CountWordsBySpeaker はそのセッション内で指定した話者が出した単語数を返す
+// (モード2の難易度アルゴリズムにおけるAIのラリー数の算出に使う)。
+func (r *Repository) CountWordsBySpeaker(ctx context.Context, sessionID string, speaker Speaker) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx, `
+		SELECT count(*) FROM game_words WHERE session_id = $1 AND speaker = $2
+	`, sessionID, speaker).Scan(&count)
+	return count, err
+}
+
 // UsedReadings はそのセッション内で既に使われた単語のreadingの集合を返す(重複チェック用)。
 func (r *Repository) UsedReadings(ctx context.Context, sessionID string) (map[string]bool, error) {
 	rows, err := r.pool.Query(ctx, `SELECT reading FROM game_words WHERE session_id = $1`, sessionID)

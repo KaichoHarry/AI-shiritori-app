@@ -1,10 +1,14 @@
 "use client";
 
+import { Bot, PartyPopper, Send, User } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { ApiError, createSession, submitWord } from "@/lib/api";
 import type { Difficulty, WordView } from "@/lib/types";
 
@@ -23,10 +27,7 @@ function VsAiPlay() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [gameOver, setGameOver] = useState<{
-    result?: string;
-    reason?: string;
-  } | null>(null);
+  const [gameOver, setGameOver] = useState<{ result?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,7 +64,7 @@ function VsAiPlay() {
       }
 
       if (res.status === "finished") {
-        setGameOver({ result: res.result, reason: res.reason });
+        setGameOver({ result: res.result });
       }
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "通信エラーが発生しました");
@@ -74,21 +75,19 @@ function VsAiPlay() {
 
   if (!sessionId || !difficulty) {
     return (
-      <div className="space-y-4 text-center">
-        <p className="text-zinc-600">難易度を選んでください</p>
-        <div className="flex justify-center gap-2">
+      <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-black/5">
+        <Bot className="mx-auto mb-4 size-10 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">難易度を選んでください</p>
+        <div className="mt-6 flex justify-center gap-3">
           {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => start(d)}
-              className="rounded border border-zinc-300 px-4 py-2 hover:bg-zinc-100"
-            >
+            <Button key={d} variant="outline" className="h-10" onClick={() => start(d)}>
               {DIFFICULTY_LABELS[d]}
-            </button>
+            </Button>
           ))}
         </div>
-        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {errorMessage && (
+          <p className="mt-4 text-sm text-destructive">{errorMessage}</p>
+        )}
       </div>
     );
   }
@@ -96,27 +95,34 @@ function VsAiPlay() {
   if (gameOver) {
     const won = gameOver.result === "win";
     return (
-      <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold text-zinc-900">
+      <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-black/5">
+        {won ? (
+          <PartyPopper className="mx-auto mb-4 size-10 text-amber-500" />
+        ) : (
+          <Bot className="mx-auto mb-4 size-10 text-muted-foreground" />
+        )}
+        <h2 className="text-xl font-bold">
           {won ? "あなたの勝ちです！" : "あなたの負けです"}
         </h2>
-        <ol className="mx-auto max-w-xs space-y-1 text-left text-sm text-zinc-700">
+        <ol className="mt-6 space-y-2 text-left text-sm">
           {turns.map((t, i) => (
-            <li key={i}>
-              {i + 1}. [{t.speaker === "ai" ? "AI" : "自分"}] {t.word.word}
+            <li key={i} className="flex items-center gap-1.5 text-muted-foreground">
+              {t.speaker === "ai" ? (
+                <Bot className="size-3.5 shrink-0" />
+              ) : (
+                <User className="size-3.5 shrink-0" />
+              )}
+              <span className="text-foreground">{t.word.word}</span>
             </li>
           ))}
         </ol>
-        <div className="flex justify-center gap-4">
-          <Link
-            href="/play/vs-ai"
-            className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700"
-          >
+        <div className="mt-8 flex justify-center gap-3">
+          <Link href="/play/vs-ai" className={cn(buttonVariants(), "h-10")}>
             もう一度遊ぶ
           </Link>
           <Link
             href="/dashboard"
-            className="rounded border border-zinc-300 px-4 py-2 text-zinc-700 hover:bg-zinc-100"
+            className={cn(buttonVariants({ variant: "outline" }), "h-10")}
           >
             ダッシュボードへ
           </Link>
@@ -128,45 +134,47 @@ function VsAiPlay() {
   const lastTurn = turns[turns.length - 1];
 
   return (
-    <div className="space-y-6 text-center">
-      <div>
-        <p className="text-sm text-zinc-500">直前のやり取り</p>
-        <p className="text-3xl font-bold text-zinc-900">
-          {lastTurn ? lastTurn.word.word : "最初の単語を入力してください"}
+    <div className="mx-auto w-full max-w-md space-y-10">
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-black/5">
+        <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          {lastTurn?.speaker === "ai" ? (
+            <Bot className="size-3.5" />
+          ) : (
+            <User className="size-3.5" />
+          )}
+          直前のやり取り
         </p>
-        {lastTurn && (
-          <p className="text-xs text-zinc-500">
-            ({lastTurn.speaker === "ai" ? "AI" : "自分"})
-          </p>
-        )}
+        <p className="mt-4 text-3xl font-bold">
+          {lastTurn ? lastTurn.word.word : "最初の単語をどうぞ"}
+        </p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-        className="flex justify-center gap-2"
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="ひらがな・カタカナで入力"
-          className="w-64 rounded border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none"
-          autoFocus
-        />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 disabled:opacity-50"
+      <div className="space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex gap-2"
         >
-          送信
-        </button>
-      </form>
+          <Input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="ひらがな・カタカナで入力"
+            className="h-11"
+            autoFocus
+          />
+          <Button type="submit" disabled={submitting} size="icon-lg" aria-label="送信">
+            <Send />
+          </Button>
+        </form>
 
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {errorMessage && (
+          <p className="text-center text-sm text-destructive">{errorMessage}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -174,10 +182,8 @@ function VsAiPlay() {
 export default function VsAiPlayPage() {
   return (
     <RequireAuth>
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-8">
-        <h1 className="mb-8 text-center text-2xl font-bold text-zinc-900">
-          AI対戦
-        </h1>
+      <div className="flex min-h-[calc(100vh-3.5rem)] flex-col justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-16">
+        <h1 className="mb-10 text-center text-xl font-semibold">AI対戦</h1>
         <VsAiPlay />
       </div>
     </RequireAuth>

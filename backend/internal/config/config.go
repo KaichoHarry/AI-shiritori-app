@@ -51,7 +51,9 @@ func Load() (*Config, error) {
 		RefreshTokenTTL:  14 * 24 * time.Hour,
 		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
 		GeminiModel:      getEnv("GEMINI_MODEL", "gemini-3.5-flash"),
-		GeminiTimeout:    5 * time.Second,
+		// モード3の会話生成(履歴+システムプロンプト付き)は5秒では頻繁にタイムアウトすることが
+		// 実測で判明したため、余裕を持たせている(モード2は辞書ベースに変更しGeminiを使わなくなった)。
+		GeminiTimeout:    20 * time.Second,
 		AdminEmail:       os.Getenv("ADMIN_EMAIL"),
 		SMTPHost:         os.Getenv("SMTP_HOST"),
 		SMTPUsername:     os.Getenv("SMTP_USERNAME"),

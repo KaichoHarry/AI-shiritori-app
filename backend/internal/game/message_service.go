@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"log"
 
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/gemini"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/sentence"
@@ -74,6 +75,7 @@ func (s *Service) SubmitMessage(ctx context.Context, sessionID, userID, content 
 
 	aiReply, err := s.gemini.GenerateReply(ctx, gemini.Tone(tone), history)
 	if err != nil {
+		log.Printf("mode3: gemini reply generation failed: %v", err)
 		return nil, err
 	}
 

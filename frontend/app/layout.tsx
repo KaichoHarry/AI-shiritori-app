@@ -3,6 +3,10 @@ import "./globals.css";
 
 import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "しりとりアプリ",
@@ -15,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className="h-full">
-      <body className="min-h-full flex flex-col bg-zinc-50 font-sans antialiased">
+    <html lang="ja" className={cn("h-full", "font-sans", geist.variable)}>
+      <body className="min-h-full flex flex-col bg-background font-sans antialiased">
         <AuthProvider>
           <Header />
           <div className="flex flex-1 flex-col">{children}</div>
