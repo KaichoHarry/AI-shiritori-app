@@ -17,7 +17,9 @@ type Config struct {
 	AccessTokenTTL   time.Duration
 	RefreshTokenTTL  time.Duration
 
-	GeminiAPIKey string
+	GeminiAPIKey  string
+	GeminiModel   string
+	GeminiTimeout time.Duration
 
 	AdminEmail string
 
@@ -27,12 +29,12 @@ type Config struct {
 	SMTPPassword string
 	SMTPFrom     string
 
-	IMAPHost             string
-	IMAPPort             int
-	IMAPUsername         string
-	IMAPPassword         string
-	IMAPPollInterval     time.Duration
-	PasswordResetTTL     time.Duration
+	IMAPHost         string
+	IMAPPort         int
+	IMAPUsername     string
+	IMAPPassword     string
+	IMAPPollInterval time.Duration
+	PasswordResetTTL time.Duration
 }
 
 func Load() (*Config, error) {
@@ -44,6 +46,8 @@ func Load() (*Config, error) {
 		AccessTokenTTL:   15 * time.Minute,
 		RefreshTokenTTL:  14 * 24 * time.Hour,
 		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:      getEnv("GEMINI_MODEL", "gemini-3.5-flash"),
+		GeminiTimeout:    5 * time.Second,
 		AdminEmail:       os.Getenv("ADMIN_EMAIL"),
 		SMTPHost:         os.Getenv("SMTP_HOST"),
 		SMTPUsername:     os.Getenv("SMTP_USERNAME"),

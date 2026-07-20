@@ -1,0 +1,82 @@
+package gemini
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"google.golang.org/genai"
+)
+
+// Tone はモード3(文章しりとり)の会話トーン。DESIGN.md 6.2節のuser_settings.mode3_toneと対応する。
+type Tone string
+
+const (
+	ToneFriendly Tone = "friendly"
+	TonePolite   Tone = "polite"
+	ToneComedy   Tone = "comedy"
+)
+
+// Speaker はモード3の会話履歴の発言者。
+type Speaker string
+
+const (
+	SpeakerUser Speaker = "user"
+	SpeakerAI   Speaker = "ai"
+)
+
+// Message はモード3の会話履歴1件分(DESIGN.md 6.2節のgame_messagesに対応)。
+type Message struct {
+	Speaker Speaker
+	Content string
+}
+
+// GenerateReply はモード3(文章しりとり・フリートーク)のAI応答をGemini APIに生成させる
+// (DESIGN.md 5.2節)。history は直近N件を呼び出し元(internal/game、実装予定)が渡す想定。
+func (c *Client) GenerateReply(ctx context.Context, tone Tone, history []Message) (string, error) {
+	ctx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	temperature := float32(0.9)
+	resp, err := c.genai.Models.GenerateContent(ctx, c.model, toContents(history), &genai.GenerateContentConfig{
+		Temperature:       &temperature,
+		SystemInstruction: genai.NewContentFromText(systemInstructionForTone(tone), genai.RoleUser),
+	})
+	if err != nil {
+		return "", fmt.Errorf("generate reply: %w", err)
+	}
+
+	reply := strings.TrimSpace(resp.Text())
+	if reply == "" {
+		return "", fmt.Errorf("gemini returned an empty reply")
+	}
+	return reply, nil
+}
+
+func toContents(history []Message) []*genai.Content {
+	contents := make([]*genai.Content, 0, len(history))
+	for _, m := range history {
+		var role genai.Role = genai.RoleUser
+		if m.Speaker == SpeakerAI {
+			role = genai.RoleModel
+		}
+		contents = append(contents, genai.NewContentFromText(m.Content, role))
+	}
+	return contents
+}
+
+func systemInstructionForTone(tone Tone) string {
+	base := "あなたはお笑い芸人のようなノリで、文章しりとり(直前の発言の文末の音から次の発言を始める言葉遊び)を交えながらカジュアルな会話を続けるAIです。" +
+		"単語単位の厳密なしりとりルールではなく、文章のつながりを重視してください。" +
+		"「ん」の音で終わる発言は会話終了の合図になってしまうため、できるだけ避けてください。" +
+		"発言は1〜2文程度の短い返答にしてください。\n\n"
+
+	switch tone {
+	case TonePolite:
+		return base + "口調は丁寧語・敬語を基本としてください。"
+	case ToneComedy:
+		return base + "コント風のノリで、大げさなツッコミやボケを交えてください。"
+	default:
+		return base + "口調はフレンドリーでカジュアルにしてください。"
+	}
+}
