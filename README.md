@@ -4,6 +4,20 @@
 
 詳細な仕様は [`docs/DESIGN.md`](docs/DESIGN.md)(設計書)、[`docs/USAGE.md`](docs/USAGE.md)(ユーザーマニュアル)を参照。
 
+本リポジトリは [jig.jp サマーインターンシップ2026選考課題](https://jigintern.github.io/summer-2026-assignment/) のベース実装([`shiritori-app`](../shiritori-app))を拡張した「課題解答版(発展版)」。
+
+## AIの活用について
+
+本プロジェクトは実装のほぼ全工程でClaude Code(CLI)を活用している。具体的な活用箇所は以下の通り(実装が進むごとに追記していく)。
+
+- 仕様書(`docs/DESIGN.md`)・使用書(`docs/USAGE.md`)の読解と、要件が曖昧な箇所(パスワード再設定方式・メール送受信方式・デプロイ先など)についての壁打ち・要件確定の対話
+- 決定した要件に合わせた`docs/DESIGN.md`の追記・修正(管理者承認によるパスワード再設定フロー、デプロイ先の追記など)
+- GitHubリポジトリ作成・初回コミット・push(`gh` CLI経由)
+- プロジェクト全体のディレクトリ構成・`docker-compose.yml`・各`Dockerfile`・`.env.example`・`.gitignore`の設計と作成
+- PostgreSQLのテーブル設計とマイグレーションファイル(`backend/migrations/`)の作成、および実際にDockerコンテナ上のPostgreSQLに対してマイグレーションのup/down動作を検証
+
+いずれも、要件が曖昧な部分は実装前にユーザーへ確認を取りながら進めており、AIが独断で仕様を決めた箇所はない。
+
 ## 技術スタック
 
 - フロントエンド: Next.js (React) + TypeScript
@@ -32,7 +46,21 @@
    cp .env.example .env
    ```
 
-2. Docker Composeで一括起動する
+2. postgresのみ起動する(backend/frontend実装前の現段階)
+
+   ```
+   docker-compose up -d postgres
+   ```
+
+3. マイグレーションを適用する(要 [golang-migrate](https://github.com/golang-migrate/migrate) CLI。`brew install golang-migrate`)
+
+   ```
+   migrate -path backend/migrations -database "postgres://shiritori:shiritori@localhost:5432/shiritori?sslmode=disable" up
+   ```
+
+   ロールバックする場合は `down` を使う(全て戻す場合は `down -all`)。
+
+4. backend/frontendの実装が揃ったら、以下で全サービスを一括起動する
 
    ```
    docker-compose up
@@ -42,7 +70,7 @@
    - backend: http://localhost:8080
    - postgres: localhost:5432
 
-> 現時点(スケルトン作成段階)ではbackend/frontendの実装がまだなく、`docker-compose up`はビルドに失敗する。DB→バックエンド→フロントエンドの実装が進み次第、このREADMEも更新する。
+> 現時点ではbackend/frontendの実装がまだなく、`docker-compose up`(postgres以外を含む一括起動)はビルドに失敗する。実装が進み次第、このREADMEも更新する。
 
 ## パスワード再設定の設計について
 
