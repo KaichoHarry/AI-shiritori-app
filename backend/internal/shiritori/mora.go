@@ -1,8 +1,10 @@
 package shiritori
 
-// smallKana は直前の文字と結合して1音として扱う小さい文字(DESIGN.md 1章参照)。
-var smallKana = map[rune]bool{
-	'っ': true,
+// youonKana は直前の文字と結合して1音(拗音)として扱う小さい文字(DESIGN.md 1章参照)。
+// 「っ」(促音)は言語学的には拗音と別物(直前の文字と結合せず、それ自体で1モーラ)であり、
+// 一般的なしりとりの感覚(例: 「ごりら」→「らっぱ」は成立する)とも合致するため、
+// ここには含めない(ユーザー確認済み)。
+var youonKana = map[rune]bool{
 	'ゃ': true,
 	'ゅ': true,
 	'ょ': true,
@@ -12,7 +14,8 @@ const longVowelMark = 'ー'
 
 // splitIntoMorae はひらがな読みを、しりとり判定上の「音」の単位(モーラ)に分割する。
 //
-//   - 拗音(っ・ゃ・ゅ・ょ)は直前の文字と結合して1モーラとして扱う。
+//   - 拗音(ゃ・ゅ・ょ)は直前の文字と結合して1モーラとして扱う。
+//   - 促音「っ」は結合せず、それ自体で独立した1モーラとして扱う。
 //   - 長音「ー」は直前のモーラに吸収され、比較対象の文字列には含めない
 //     (例: 「コーヒー」→ [こ, ひ]。末尾の「ー」は直前の母音音を使うというDESIGN.md 1章の
 //     ルールに従い、末尾モーラは「ひ」になる)。
@@ -22,7 +25,7 @@ func splitIntoMorae(reading string) []string {
 		switch {
 		case r == longVowelMark && len(morae) > 0:
 			// 長音は直前のモーラに吸収し、文字列としては付け足さない。
-		case smallKana[r] && len(morae) > 0:
+		case youonKana[r] && len(morae) > 0:
 			morae[len(morae)-1] += string(r)
 		default:
 			morae = append(morae, string(r))

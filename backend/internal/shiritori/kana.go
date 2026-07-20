@@ -104,3 +104,32 @@ func katakanaToHiragana(s string) string {
 	}
 	return b.String()
 }
+
+// ToHiragana はkatakanaToHiraganaの公開版(internal/sentence等の他パッケージから利用する)。
+func ToHiragana(s string) string {
+	return katakanaToHiragana(s)
+}
+
+// IsHiragana は文字がひらがな(長音「ー」を含む)かどうかを判定する。
+func IsHiragana(r rune) bool {
+	return (r >= 0x3041 && r <= 0x3096) || r == longVowelMark
+}
+
+// IsKatakana は文字がカタカナ(長音「ー」を含む)かどうかを判定する。
+func IsKatakana(r rune) bool {
+	return (r >= 0x30A1 && r <= 0x30FC)
+}
+
+// IsKanaOnly は語がひらがな・カタカナのみで構成されているかどうかを判定する
+// (モード1・2の入力制約。漢字・英数字・記号等は不可)。
+func IsKanaOnly(word string) bool {
+	if word == "" {
+		return false
+	}
+	for _, r := range word {
+		if !IsHiragana(r) && !IsKatakana(r) {
+			return false
+		}
+	}
+	return true
+}

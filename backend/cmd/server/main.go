@@ -15,6 +15,8 @@ import (
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/auth"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/config"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/db"
+	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/game"
+	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/gemini"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/mail"
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/settings"
 )
@@ -47,6 +49,14 @@ func main() {
 	settingsRepo := settings.NewRepository(pool)
 	settingsHandler := settings.NewHandler(settingsRepo)
 
+	geminiClient, err := gemini.New(ctx, cfg.GeminiAPIKey, cfg.GeminiModel, cfg.GeminiTimeout)
+	if err != nil {
+		log.Fatalf("create gemini client: %v", err)
+	}
+	gameRepo := game.NewRepository(pool)
+	gameService := game.NewService(gameRepo, settingsRepo, geminiClient)
+	gameHandler := game.NewHandler(gameService)
+
 	if cfg.IMAPHost != "" {
 		poller := mail.NewIMAPPoller(cfg.IMAPHost, cfg.IMAPPort, cfg.IMAPUsername, cfg.IMAPPassword, cfg.IMAPPollInterval, authService)
 		go poller.Run(ctx)
@@ -66,6 +76,7 @@ func main() {
 	r.Route("/api", func(api chi.Router) {
 		api.Mount("/auth", authHandler.Routes())
 		api.Mount("/settings", settingsHandler.Routes(authHandler.RequireAuth))
+		api.Mount("/games", gameHandler.Routes(authHandler.RequireAuth))
 	})
 
 	srv := &http.Server{

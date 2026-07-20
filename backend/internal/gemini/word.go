@@ -36,7 +36,7 @@ func (c *Client) GenerateWord(ctx context.Context, requiredFirstSound string, us
 		Properties: map[string]*genai.Schema{
 			"word": {
 				Type:        genai.TypeString,
-				Description: "しりとりの次の単語(ひらがな・カタカナ・漢字のいずれかで1語)",
+				Description: "しりとりの次の単語(ひらがな又はカタカナのみで1語。漢字・英数字は不可)",
 			},
 		},
 		Required: []string{"word"},
@@ -66,6 +66,7 @@ func buildWordPrompt(requiredFirstSound string, usedWords []string, difficulty D
 	b.WriteString("あなたはしりとりゲームのプレイヤーです。次のルールに従って、しりとりの単語を1つだけ考えてください。\n\n")
 	fmt.Fprintf(&b, "- 次に出す単語は「%s」から始まる単語でなければなりません。\n", requiredFirstSound)
 	b.WriteString("- 「ん」で終わる単語は絶対に選ばないでください。\n")
+	b.WriteString("- 回答は必ずひらがな又はカタカナのみで表記してください。漢字・英数字・記号は一切使わないでください。\n")
 	if len(usedWords) > 0 {
 		fmt.Fprintf(&b, "- 以下の単語は既に使用済みなので、選ばないでください: %s\n", strings.Join(usedWords, "、"))
 	}

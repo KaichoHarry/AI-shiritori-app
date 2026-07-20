@@ -1,23 +1,51 @@
 package sentence
 
 import (
-	"strings"
-
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/shiritori"
 )
 
-// trailingPunctuation は文末の音を抽出する前に取り除く句読点・記号(DESIGN.md 8.1節1.参照)。
-const trailingPunctuation = "。.!?!?、,　 \n\r\t…「」『』\"'"
-
-// ExtractEndingSound は発言(文章)から、末尾の句読点・記号を除去したうえで
-// 文末の音(モーラ)を抽出する。しりとり判定と同じかな正規化・モーラ分割ロジックを流用する。
+// ExtractEndingSound は発言(文章)の末尾から遡り、最初に見つかった「有効な文字」
+// (ひらがな・カタカナ・半角英字・全角英字)をもとに文末の音を抽出する。
+//
+// 句読点・記号・絵文字等の「文末に付け足された飾り」を一律に取り除く方式ではなく、
+// 有効な文字が見つかるまで遡る方式を採用している(ユーザー確認済み)。この文字種の
+// 制約はフロントエンド側でもユーザーに周知する想定。
 func ExtractEndingSound(content string) string {
-	trimmed := strings.TrimRight(content, trailingPunctuation)
-	if trimmed == "" {
+	runes := []rune(content)
+	idx := -1
+	for i := len(runes) - 1; i >= 0; i-- {
+		if isAllowedEndingRune(runes[i]) {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
 		return ""
 	}
-	reading := shiritori.Analyze(trimmed).Reading
-	return shiritori.LastSound(reading)
+
+	if isAlphabet(runes[idx]) {
+		return string(runes[idx])
+	}
+
+	// ひらがな・カタカナの場合は、見つかった文字までの接頭辞をひらがなに正規化したうえで
+	// しりとり判定モジュールのモーラ分割ロジック(長音・拗音の扱い)を流用する。
+	prefix := shiritori.ToHiragana(string(runes[:idx+1]))
+	return shiritori.LastSound(prefix)
+}
+
+func isAllowedEndingRune(r rune) bool {
+	return shiritori.IsHiragana(r) || shiritori.IsKatakana(r) || isAlphabet(r)
+}
+
+func isAlphabet(r rune) bool {
+	switch {
+	case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z': // 半角英字
+		return true
+	case r >= 0xFF21 && r <= 0xFF3A, r >= 0xFF41 && r <= 0xFF5A: // 全角英字
+		return true
+	default:
+		return false
+	}
 }
 
 // EndReason はチェーン終了理由。DESIGN.md 2.3節のresult値と対応する。

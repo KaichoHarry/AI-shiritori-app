@@ -45,6 +45,10 @@ func TestFirstSound(t *testing.T) {
 	if got := FirstSound("りんご"); got != "り" {
 		t.Errorf("FirstSound(りんご) = %q, want %q", got, "り")
 	}
+	// 促音「っ」は拗音と異なり、直前の文字と結合せず独立した1モーラとして扱う。
+	if got := FirstSound("らっぱ"); got != "ら" {
+		t.Errorf("FirstSound(らっぱ) = %q, want %q", got, "ら")
+	}
 }
 
 func TestEndsWithN(t *testing.T) {
@@ -63,6 +67,22 @@ func TestJudgeAcceptsFirstWord(t *testing.T) {
 	}
 	if result.Reading != "しりとり" {
 		t.Errorf("Reading = %q, want しりとり", result.Reading)
+	}
+}
+
+func TestJudgeInvalidCharacters(t *testing.T) {
+	cases := []string{"理科", "apple", "しりとり1", "パン。"}
+	for _, word := range cases {
+		result := Judge(word, "", map[string]bool{})
+		if result.Accepted {
+			t.Errorf("Judge(%q) accepted, want rejection", word)
+		}
+		if result.Fatal {
+			t.Errorf("Judge(%q) fatal, want non-fatal", word)
+		}
+		if result.Reason != ReasonInvalidCharacters {
+			t.Errorf("Judge(%q).Reason = %q, want %q", word, result.Reason, ReasonInvalidCharacters)
+		}
 	}
 }
 
@@ -98,6 +118,14 @@ func TestJudgeConnectionMatch(t *testing.T) {
 	result := Judge("ごりら", "りんご", map[string]bool{})
 	if !result.Accepted {
 		t.Fatalf("expected acceptance for ごりら following りんご: %+v", result)
+	}
+}
+
+func TestJudgeConnectionMatchAcrossSokuon(t *testing.T) {
+	// 「ごりら」(末尾「ら」)→「らっぱ」は一般的なしりとりで成立する(ユーザー確認済み)。
+	result := Judge("らっぱ", "ごりら", map[string]bool{})
+	if !result.Accepted {
+		t.Fatalf("expected acceptance for らっぱ following ごりら: %+v", result)
 	}
 }
 

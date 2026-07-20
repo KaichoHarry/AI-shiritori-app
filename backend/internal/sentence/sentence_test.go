@@ -13,8 +13,14 @@ func TestExtractEndingSound(t *testing.T) {
 		{"今日は天気がいいね", "ね"},
 		{"今日は天気がいいね。", "ね"},
 		{"今日は天気がいいね!!", "ね"},
+		{"今日は天気がいいね！！", "ね"}, // 全角の感嘆符も除外対象
 		{"ねこも気持ちよさそうに寝てるよ", "よ"},
 		{"布団が吹っ飛んだ", "だ"},
+		// 末尾から遡って最初に見つかった有効文字(ひらがな/カタカナ/英字)を使う仕様のため、
+		// 末尾が漢字の場合はその手前の仮名までスキップする(ユーザー確認済み)。
+		{"これは私の本", "の"},
+		{"hello", "o"},  // 半角英字
+		{"了解ですＯＫ", "Ｋ"}, // 全角英字
 	}
 	for _, c := range cases {
 		got := ExtractEndingSound(c.content)
@@ -25,7 +31,9 @@ func TestExtractEndingSound(t *testing.T) {
 }
 
 func TestEvaluateEndsWithN(t *testing.T) {
-	result := Evaluate("それはとても残念", nil)
+	// 「残念」のような漢字表記は末尾音の判定対象外(ひらがな/カタカナ/英字のみ有効)なので、
+	// ひらがなで直接「ん」に終わる文で検証する(ユーザー確認済み仕様)。
+	result := Evaluate("それはとてもざんねん", nil)
 	if !result.Ended || result.Reason != EndReasonN {
 		t.Fatalf("unexpected result: %+v", result)
 	}
