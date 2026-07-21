@@ -1,11 +1,11 @@
-# TODO: フロントエンド実装ステップ(package.json / next.config 作成)後に、
-#       実際の依存関係・ビルドコマンドに合わせて内容を見直す。
-
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
+# publicディレクトリは中身が空の場合Gitに追跡されず存在しないことがあるため、
+# 後段のCOPY --from=builderが失敗しないよう保証しておく。
+RUN mkdir -p public
 RUN npm run build
 
 FROM node:22-alpine

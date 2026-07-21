@@ -1,0 +1,7 @@
+{
+  "name": "ai-shiritori-app-railway-config",
+  "private": true,
+  "devDependencies": {
+    "railway": "latest"
+  }
+}

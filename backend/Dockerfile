@@ -1,6 +1,3 @@
-# TODO: バックエンド実装ステップ(go.mod / cmd/server/main.go 作成)後に、
-#       実際の依存関係・ビルドタグ・使用フレームワークに合わせて内容を見直す。
-
 FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
