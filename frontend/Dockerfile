@@ -6,6 +6,11 @@ COPY . .
 # publicディレクトリは中身が空の場合Gitに追跡されず存在しないことがあるため、
 # 後段のCOPY --from=builderが失敗しないよう保証しておく。
 RUN mkdir -p public
+# NEXT_PUBLIC_*はNext.jsのビルド時に静的に埋め込まれる値のため、Dockerfile内で
+# ARGとして明示的に受け取りビルド前にENV化する必要がある(Railway等のDockerfile
+# ベースのビルドでは、ARG宣言のない環境変数はビルドステージに渡されないため)。
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run build
 
 FROM node:22-alpine

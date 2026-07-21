@@ -30,10 +30,11 @@ services:
   frontend:
     build:
       context: ./frontend
+      # NEXT_PUBLIC_*はNext.jsのビルド時に静的に埋め込まれる値のため、`environment:`
+      # (コンテナ実行時の環境変数)ではなくビルド時の`args`として渡す必要がある。
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
     restart: unless-stopped
-    environment:
-      # TODO: フロントエンド実装時に、実際に使う環境変数名(API接続先など)に合わせて見直す
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
     ports:
       - "3000:3000"
     depends_on:
