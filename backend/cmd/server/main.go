@@ -91,6 +91,9 @@ func main() {
 		Addr:              ":" + cfg.Port,
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
+		// SMTP送信など外部I/Oを含むハンドラが応答不能な相手先に無期限にブロックされないよう、
+		// リクエスト全体の上限を設ける(mail.smtpTimeout=10sより余裕を持たせている)。
+		WriteTimeout: 30 * time.Second,
 	}
 
 	go func() {
