@@ -4,7 +4,7 @@
 
 詳細な仕様は [`docs/DESIGN.md`](docs/DESIGN.md)(設計書)、[`docs/USAGE.md`](docs/USAGE.md)(ユーザーマニュアル)を参照。
 
-本リポジトリは [jig.jp サマーインターンシップ2026選考課題](https://jigintern.github.io/summer-2026-assignment/) のベース実装([`shiritori-app`](../shiritori-app))を拡張した「課題解答版(発展版)」。
+本リポジトリは [jig.jp サマーインターンシップ2026選考課題](https://jigintern.github.io/summer-2026-assignment/) のベース実装([`shiritori-app`](https://github.com/KaichoHarry/shiritori-app))を拡張した「課題解答版(発展版)」。
 
 ## デプロイ先
 
