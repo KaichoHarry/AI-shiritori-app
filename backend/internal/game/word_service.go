@@ -66,6 +66,9 @@ type WordResult struct {
 	AIWord     *WordView
 	Status     Status
 	Result     *Result
+	// NextRequiredSound はゲームが継続する場合に、次に入力すべき単語の先頭音
+	// (ひらがな)。UIで「〇から始まる言葉を入力してください」と案内するために使う。
+	NextRequiredSound string
 }
 
 // SubmitWord はモード1(ソロプレイ)・モード2(AI対戦)共通のプレイヤー単語送信処理
@@ -127,9 +130,10 @@ func (s *Service) SubmitWord(ctx context.Context, sessionID, userID, rawWord str
 
 	if session.Mode == ModeSolo {
 		return &WordResult{
-			Accepted:   true,
-			PlayerWord: playerWordView,
-			Status:     StatusInProgress,
+			Accepted:          true,
+			PlayerWord:        playerWordView,
+			Status:            StatusInProgress,
+			NextRequiredSound: shiritori.LastSound(playerJudge.Reading),
 		}, nil
 	}
 
@@ -166,10 +170,11 @@ func (s *Service) playAITurn(ctx context.Context, session *Session, playerSeq in
 	}
 
 	return &WordResult{
-		Accepted:   true,
-		PlayerWord: playerWordView,
-		AIWord:     &WordView{Word: aiReading, Reading: aiReading},
-		Status:     StatusInProgress,
+		Accepted:          true,
+		PlayerWord:        playerWordView,
+		AIWord:            &WordView{Word: aiReading, Reading: aiReading},
+		Status:            StatusInProgress,
+		NextRequiredSound: shiritori.LastSound(aiReading),
 	}, nil
 }
 

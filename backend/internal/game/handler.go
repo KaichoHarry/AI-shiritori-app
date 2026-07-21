@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/auth"
+	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/shiritori"
 )
 
 type Handler struct {
@@ -107,6 +108,16 @@ func (h *Handler) getSession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		body["messages"] = messageRecordViews(messages)
+
+		// セッションを再開・再読み込みした際にも次の文の書き出し音のヒントを表示できるよう、
+		// 継続中セッションでは直近の発言(AIの発言があればそれ、無ければ自分の発言)の
+		// 文末音からヒントを再計算する。
+		if session.Status == StatusInProgress && len(messages) > 0 {
+			last := messages[len(messages)-1]
+			if hint := nextHintView(last.EndingSound); hint != nil {
+				body["next_hint"] = hint
+			}
+		}
 	} else {
 		words, err := h.service.GetWords(r.Context(), sessionID)
 		if err != nil {
@@ -114,6 +125,15 @@ func (h *Handler) getSession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		body["words"] = wordRecordViews(words)
+
+		// セッションを再開・再読み込みした際にも「〇から始まる言葉を入力してください」の
+		// 案内を表示できるよう、継続中セッションでは直近の単語からヒントを再計算する。
+		if session.Status == StatusInProgress && len(words) > 0 {
+			last := words[len(words)-1]
+			if hint := nextHintView(shiritori.LastSound(last.Reading)); hint != nil {
+				body["next_hint"] = hint
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, body)

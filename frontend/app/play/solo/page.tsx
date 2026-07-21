@@ -10,12 +10,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ApiError, createSession, submitWord } from "@/lib/api";
-import type { WordView } from "@/lib/types";
+import type { NextHint, WordView } from "@/lib/types";
 
 function SoloPlay() {
   const { authFetch } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [lastWord, setLastWord] = useState<WordView | null>(null);
+  const [nextHint, setNextHint] = useState<NextHint | null>(null);
   const [history, setHistory] = useState<WordView[]>([]);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -24,13 +25,25 @@ function SoloPlay() {
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  function startNewGame() {
+    setSessionId(null);
+    setLastWord(null);
+    setNextHint(null);
+    setHistory([]);
+    setInput("");
+    setErrorMessage(null);
+    setGameOver(false);
+    setLoading(true);
     authFetch((token) => createSession(token, "solo"))
       .then((s) => setSessionId(s.id))
       .catch((err) => {
         setErrorMessage(err instanceof ApiError ? err.message : "開始に失敗しました");
       })
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -42,6 +55,7 @@ function SoloPlay() {
       const res = await authFetch((token) => submitWord(token, sessionId, input));
       if (res.accepted && res.player_word) {
         setLastWord(res.player_word);
+        setNextHint(res.next_hint ?? null);
         setHistory((h) => [...h, res.player_word!]);
         setInput("");
         inputRef.current?.focus();
@@ -84,9 +98,9 @@ function SoloPlay() {
           ))}
         </ol>
         <div className="mt-8 flex justify-center gap-3">
-          <Link href="/play/solo" className={cn(buttonVariants(), "h-10")}>
+          <Button className="h-10" onClick={startNewGame}>
             もう一度遊ぶ
-          </Link>
+          </Button>
           <Link
             href="/dashboard"
             className={cn(buttonVariants({ variant: "outline" }), "h-10")}
@@ -111,6 +125,12 @@ function SoloPlay() {
       </div>
 
       <div className="space-y-3">
+        {nextHint && (
+          <p className="text-center text-sm text-muted-foreground">
+            「{nextHint.hiragana}」または「{nextHint.katakana}」から始まる言葉を入力してください
+          </p>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();

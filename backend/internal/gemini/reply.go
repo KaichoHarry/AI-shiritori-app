@@ -32,23 +32,35 @@ type Message struct {
 }
 
 // GenerateReply はモード3(文章しりとり・フリートーク)のAI応答をGemini APIに生成させる
-// (DESIGN.md 5.2節)。history は直近N件を呼び出し元(internal/game、実装予定)が渡す想定。
+// (DESIGN.md 5.2節)。history は直近N件を呼び出し元(internal/game)が渡す想定。
+//
+// 実際に大量にテストしたところ、Gemini API(gemini-3.5-flash)が503(高負荷)・
+// 504(タイムアウト)を高い頻度で返すことが分かったため、一時的なエラーには
+// internal/gemini.withRetryで再試行する(DESIGN.md 5.3節、ユーザー確認済み)。
 func (c *Client) GenerateReply(ctx context.Context, tone Tone, history []Message) (string, error) {
-	ctx, cancel := c.withTimeout(ctx)
-	defer cancel()
-
 	temperature := float32(0.9)
-	resp, err := c.genai.Models.GenerateContent(ctx, c.model, toContents(history), &genai.GenerateContentConfig{
-		Temperature:       &temperature,
-		SystemInstruction: genai.NewContentFromText(systemInstructionForTone(tone), genai.RoleUser),
+	systemInstruction := genai.NewContentFromText(systemInstructionForTone(tone), genai.RoleUser)
+	contents := toContents(history)
+
+	reply, err := withRetry(ctx, func(attemptCtx context.Context) (string, error) {
+		attemptCtx, cancel := c.withTimeout(attemptCtx)
+		defer cancel()
+
+		resp, err := c.genai.Models.GenerateContent(attemptCtx, c.model, contents, &genai.GenerateContentConfig{
+			Temperature:       &temperature,
+			SystemInstruction: systemInstruction,
+		})
+		if err != nil {
+			return "", fmt.Errorf("generate reply: %w", err)
+		}
+		text := strings.TrimSpace(resp.Text())
+		if text == "" {
+			return "", fmt.Errorf("gemini returned an empty reply")
+		}
+		return text, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("generate reply: %w", err)
-	}
-
-	reply := strings.TrimSpace(resp.Text())
-	if reply == "" {
-		return "", fmt.Errorf("gemini returned an empty reply")
+		return "", err
 	}
 	return reply, nil
 }

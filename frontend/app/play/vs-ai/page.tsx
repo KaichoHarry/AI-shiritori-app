@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ApiError, createSession, submitWord } from "@/lib/api";
-import type { Difficulty, WordView } from "@/lib/types";
+import type { Difficulty, NextHint, WordView } from "@/lib/types";
 
 type Turn = { speaker: "user" | "ai"; word: WordView };
 
@@ -25,11 +25,22 @@ function VsAiPlay() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [nextHint, setNextHint] = useState<NextHint | null>(null);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [gameOver, setGameOver] = useState<{ result?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function resetGame() {
+    setSessionId(null);
+    setDifficulty(null);
+    setTurns([]);
+    setNextHint(null);
+    setInput("");
+    setErrorMessage(null);
+    setGameOver(null);
+  }
 
   async function start(selected: Difficulty) {
     setErrorMessage(null);
@@ -62,6 +73,8 @@ function VsAiPlay() {
         setInput("");
         inputRef.current?.focus();
       }
+
+      setNextHint(res.next_hint ?? null);
 
       if (res.status === "finished") {
         setGameOver({ result: res.result });
@@ -117,9 +130,9 @@ function VsAiPlay() {
           ))}
         </ol>
         <div className="mt-8 flex justify-center gap-3">
-          <Link href="/play/vs-ai" className={cn(buttonVariants(), "h-10")}>
+          <Button className="h-10" onClick={resetGame}>
             もう一度遊ぶ
-          </Link>
+          </Button>
           <Link
             href="/dashboard"
             className={cn(buttonVariants({ variant: "outline" }), "h-10")}
@@ -150,6 +163,12 @@ function VsAiPlay() {
       </div>
 
       <div className="space-y-3">
+        {nextHint && (
+          <p className="text-center text-sm text-muted-foreground">
+            「{nextHint.hiragana}」または「{nextHint.katakana}」から始まる言葉を入力してください
+          </p>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();

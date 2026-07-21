@@ -2,94 +2,35 @@ package shiritori
 
 import (
 	"strings"
-
-	"github.com/ikawaha/kagome-dict/ipa"
-	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
-var sharedTokenizer *tokenizer.Tokenizer
-
-func init() {
-	t, err := tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
-	if err != nil {
-		panic("shiritori: failed to initialize tokenizer: " + err.Error())
-	}
-	sharedTokenizer = t
-}
-
-// AnalyzeResult は入力語の形態素解析結果。
+// AnalyzeResult は入力語の辞書存在チェック結果。
 type AnalyzeResult struct {
 	// Reading は入力語をひらがなに正規化した読み。
 	Reading string
-	// Known は辞書引き上、既知語(未知語処理にフォールバックしていない)かどうか。
+	// Known は辞書引き上、実在する単語(名詞)として認識できるかどうか。
 	Known bool
 }
 
-// Analyze は入力語(漢字/カタカナ/ひらがな混在可)を形態素解析し、
-// ひらがな読みと辞書存在チェック結果を返す(DESIGN.md 4.1・4.2・8章参照)。
+// Analyze は入力語(ひらがな・カタカナのみを想定。呼び出し元のJudgeがIsKanaOnlyで
+// 事前に弾く)をひらがなに正規化し、IPADIC辞書の名詞の読みとして実在するかどうかを
+// 判定する(DESIGN.md 4.1・4.2・8章参照)。
 //
-// IPADICの見出し語はひらがな表記のみ(例: 「しりとり」)、カタカナ表記のみ
-// (例: 「パン」のような外来語)のいずれかで登録されていることが多く、表記が
-// 揺れると同じ単語でも既知語と判定されないことがある。そのため、入力そのままで
-// 未知語と判定された場合は、ひらがな/カタカナを入れ替えた表記でも解析を試みる。
+// 以前はkagomeの形態素解析器でこの文字列を再トークン化し、既知語として認識できるかを
+// 見る方式だったが、以下の不整合が判明したため、読み(ひらがな)の集合を直接引く方式
+// (internal/shiritori.IsKnownReading、AIの単語バンクと共通のデータソース)に変更した。
+//   - 「花火」はトークナイザでKnown=trueになるが、読みの「はなび」(ひらがな)を
+//     そのままトークン化すると未知語判定になってしまう(漢字の見出し語をひらがなの
+//     読みだけで再認識できないケースがある)。
+//   - ひらがな⇔カタカナ変換フォールバックの副作用で、「ぁ」「っ」のような
+//     小さい仮名1文字が、IPADIC辞書内の記号的なエントリを拾って誤って既知語判定
+//     されていた。
 func Analyze(word string) AnalyzeResult {
-	result := analyzeSurface(word)
-	if result.Known {
-		return result
-	}
-
-	alt := toggleKanaScript(word)
-	if alt == word {
-		return result
-	}
-	altResult := analyzeSurface(alt)
-	if altResult.Known {
-		return altResult
-	}
-
-	return result
-}
-
-func analyzeSurface(word string) AnalyzeResult {
-	tokens := sharedTokenizer.Analyze(word, tokenizer.Normal)
-
-	var readingKatakana strings.Builder
-	known := len(tokens) > 0
-	for _, tok := range tokens {
-		reading, ok := tok.Reading()
-		if !ok || reading == "*" {
-			// 未知語トークンは読みを持たないことがある。表層形をそのまま読みとして扱う。
-			reading = tok.Surface
-		}
-		readingKatakana.WriteString(reading)
-
-		if tok.Class != tokenizer.KNOWN {
-			known = false
-		}
-	}
-
+	hiragana := katakanaToHiragana(word)
 	return AnalyzeResult{
-		Reading: katakanaToHiragana(readingKatakana.String()),
-		Known:   known,
+		Reading: hiragana,
+		Known:   IsKnownReading(hiragana),
 	}
-}
-
-// toggleKanaScript はひらがなをカタカナに、カタカナをひらがなに入れ替える。
-// 漢字等それ以外の文字はそのまま残す。
-func toggleKanaScript(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	for _, r := range s {
-		switch {
-		case r >= 0x3041 && r <= 0x3096: // ひらがな → カタカナ
-			b.WriteRune(r + 0x60)
-		case r >= 0x30A1 && r <= 0x30F6: // カタカナ → ひらがな
-			b.WriteRune(r - 0x60)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }
 
 // katakanaToHiragana はカタカナをひらがなに変換する。カタカナ範囲外の文字はそのまま残す。
@@ -108,6 +49,20 @@ func katakanaToHiragana(s string) string {
 // ToHiragana はkatakanaToHiraganaの公開版(internal/sentence等の他パッケージから利用する)。
 func ToHiragana(s string) string {
 	return katakanaToHiragana(s)
+}
+
+// ToKatakana はひらがなをカタカナに変換する(次に入力すべき音のヒント表示で、
+// ひらがな・カタカナ両方の表記を示すために使う)。ひらがな範囲外の文字はそのまま残す。
+func ToKatakana(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r >= 0x3041 && r <= 0x3096 {
+			r += 0x60
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // IsHiragana は文字がひらがな(長音「ー」を含む)かどうかを判定する。

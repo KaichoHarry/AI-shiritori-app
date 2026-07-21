@@ -15,6 +15,7 @@ import {
   endSession,
   submitMessage,
 } from "@/lib/api";
+import type { NextHint } from "@/lib/types";
 
 type ChatMessage = { speaker: "user" | "ai"; content: string };
 
@@ -22,6 +23,7 @@ function FreeTalkPlay() {
   const { authFetch } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [nextHint, setNextHint] = useState<NextHint | null>(null);
   const [input, setInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
@@ -29,19 +31,30 @@ function FreeTalkPlay() {
   const [submitting, setSubmitting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  function startNewChat() {
+    setSessionId(null);
+    setMessages([]);
+    setNextHint(null);
+    setInput("");
+    setErrorMessage(null);
+    setFinished(false);
+    setLoading(true);
     authFetch((token) => createSession(token, "free_talk"))
       .then((s) => setSessionId(s.id))
       .catch((err) => {
         setErrorMessage(err instanceof ApiError ? err.message : "開始に失敗しました");
       })
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    startNewChat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, submitting]);
 
   async function handleSubmit() {
     if (!sessionId || !input.trim() || submitting || finished) return;
@@ -58,6 +71,7 @@ function FreeTalkPlay() {
           { speaker: "ai", content: res.ai_message!.content },
         ]);
       }
+      setNextHint(res.next_hint ?? null);
       if (res.status === "finished") {
         setFinished(true);
       }
@@ -91,7 +105,9 @@ function FreeTalkPlay() {
           <p className="pt-12 text-center text-sm text-muted-foreground">
             最初のメッセージを送ってみましょう
             <br />
-            (ひらがな・カタカナ・英字で終わる文にしてください)
+            文末が「。」「！」のような記号や絵文字、または送り仮名のない漢字で
+            終わっていても、そこは無視して、その前にある最後のひらがな・カタカナ・
+            英字まで遡って次の音が決まります
           </p>
         )}
         {messages.map((m, i) => (
@@ -120,6 +136,28 @@ function FreeTalkPlay() {
             )}
           </div>
         ))}
+        {submitting && !finished && (
+          <div className="flex items-end gap-2 justify-start">
+            <Bot className="mb-1 size-5 shrink-0 text-blue-600" />
+            <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-blue-50 px-4 py-2.5 text-sm text-muted-foreground">
+              <span>AIが返事を考えています</span>
+              <span className="flex items-end gap-0.5">
+                <span
+                  className="size-1.5 animate-bounce rounded-full bg-blue-400"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="size-1.5 animate-bounce rounded-full bg-blue-400"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="size-1.5 animate-bounce rounded-full bg-blue-400"
+                  style={{ animationDelay: "300ms" }}
+                />
+              </span>
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -127,9 +165,9 @@ function FreeTalkPlay() {
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
           <p className="text-sm font-medium">会話が終了しました</p>
           <div className="mt-5 flex justify-center gap-3">
-            <Link href="/play/free-talk" className={cn(buttonVariants(), "h-10")}>
+            <Button className="h-10" onClick={startNewChat}>
               もう一度話す
-            </Link>
+            </Button>
             <Link
               href="/dashboard"
               className={cn(buttonVariants({ variant: "outline" }), "h-10")}
@@ -139,34 +177,41 @@ function FreeTalkPlay() {
           </div>
         </div>
       ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="メッセージを入力"
-            className="h-11"
-            autoFocus
-          />
-          <Button type="submit" disabled={submitting} size="icon-lg" aria-label="送信">
-            <Send />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-lg"
-            aria-label="終了する"
-            onClick={handleEnd}
+        <div className="space-y-2">
+          {nextHint && (
+            <p className="text-center text-sm text-muted-foreground">
+              「{nextHint.hiragana}」または「{nextHint.katakana}」から始まる文章で返信しましょう
+            </p>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            className="flex gap-2"
           >
-            <Square />
-          </Button>
-        </form>
+            <Input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="メッセージを入力"
+              className="h-11"
+              autoFocus
+            />
+            <Button type="submit" disabled={submitting} size="icon-lg" aria-label="送信">
+              <Send />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-lg"
+              aria-label="終了する"
+              onClick={handleEnd}
+            >
+              <Square />
+            </Button>
+          </form>
+        </div>
       )}
 
       {errorMessage && (

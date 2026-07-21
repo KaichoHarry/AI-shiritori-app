@@ -10,7 +10,10 @@ func TestAnalyzeKnownWords(t *testing.T) {
 		{"しりとり", "しりとり"},
 		{"りんご", "りんご"},
 		{"コーヒー", "こーひー"},
-		{"東京", "とうきょう"},
+		// 「花火」はKnown=trueだが「はなび」(ひらがな)は未知語判定になるという
+		// 不整合があった。読みの集合を直接引く方式に変えたことで正しく実在語と認識される。
+		{"はなび", "はなび"},
+		{"ハナビ", "はなび"},
 	}
 	for _, c := range cases {
 		got := Analyze(c.word)
@@ -27,6 +30,22 @@ func TestAnalyzeUnknownWord(t *testing.T) {
 	got := Analyze("ぎゃばんずぽんてけ")
 	if got.Known {
 		t.Errorf("Analyze(nonsense word).Known = true, want false (got reading %q)", got.Reading)
+	}
+}
+
+// TestAnalyzeSingleSmallKana は、小さい仮名1文字だけの入力が全て未知語として
+// 拒否されることを検証する(「ぁ」「っ」がIPADIC辞書内の記号的エントリを介して
+// 誤って既知語判定されていた問題の再発防止)。
+func TestAnalyzeSingleSmallKana(t *testing.T) {
+	smallKanaChars := []string{
+		"ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "ゃ", "ゅ", "ょ", "っ", "ゎ",
+		"ァ", "ィ", "ゥ", "ェ", "ォ", "ャ", "ュ", "ョ", "ッ", "ヮ",
+	}
+	for _, c := range smallKanaChars {
+		got := Analyze(c)
+		if got.Known {
+			t.Errorf("Analyze(%q).Known = true, want false (single small kana should never be a valid word)", c)
+		}
 	}
 }
 
@@ -48,6 +67,22 @@ func TestFirstSound(t *testing.T) {
 	// 促音「っ」は拗音と異なり、直前の文字と結合せず独立した1モーラとして扱う。
 	if got := FirstSound("らっぱ"); got != "ら" {
 		t.Errorf("FirstSound(らっぱ) = %q, want %q", got, "ら")
+	}
+}
+
+func TestLastSoundForeignSmallVowel(t *testing.T) {
+	// 外来語表記の小さい母音(ぁぃぅぇぉ)は拗音と同様に直前の文字と結合するため、
+	// 「カフェ」の末尾モーラは独立した「ぇ」ではなく「ふぇ」になる。
+	cases := []struct{ reading, want string }{
+		{"かふぇ", "ふぇ"},
+		{"ぱーてぃー", "てぃ"},
+		{"れでぃー", "でぃ"},
+		{"そふぁー", "ふぁ"},
+	}
+	for _, c := range cases {
+		if got := LastSound(c.reading); got != c.want {
+			t.Errorf("LastSound(%q) = %q, want %q", c.reading, got, c.want)
+		}
 	}
 }
 

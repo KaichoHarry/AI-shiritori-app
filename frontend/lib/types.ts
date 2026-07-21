@@ -56,6 +56,11 @@ export type WordView = {
   reading: string;
 };
 
+export type NextHint = {
+  hiragana: string;
+  katakana: string;
+};
+
 export type WordSubmitResult = {
   accepted: boolean;
   fatal: boolean;
@@ -65,6 +70,7 @@ export type WordSubmitResult = {
   ai_word?: WordView;
   status: SessionStatus;
   result?: SessionResult;
+  next_hint?: NextHint;
 };
 
 export type MessageView = {
@@ -77,6 +83,7 @@ export type MessageSubmitResult = {
   ai_message?: MessageView;
   status: SessionStatus;
   result?: SessionResult;
+  next_hint?: NextHint;
 };
 
 export type ApiError = {

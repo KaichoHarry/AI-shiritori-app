@@ -2,6 +2,7 @@ import type {
   Difficulty,
   MessageRecord,
   MessageSubmitResult,
+  NextHint,
   Session,
   Settings,
   Tone,
@@ -139,6 +140,7 @@ export function getSessionDetail(token: string, id: string) {
     session: Session;
     words?: WordRecord[];
     messages?: MessageRecord[];
+    next_hint?: NextHint;
   }>(`/api/games/${id}`, { token });
 }
 

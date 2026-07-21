@@ -3,6 +3,8 @@ package game
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/KaichoHarry/AI-shiritori-app/backend/internal/shiritori"
 )
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
@@ -71,6 +73,18 @@ func wordView(v *WordView) map[string]any {
 	return map[string]any{"word": v.Word, "reading": v.Reading}
 }
 
+// nextHintView は「〇から始まる言葉を入力してください」というUI案内文言のために、
+// 次に入力すべき単語の先頭音をひらがな・カタカナ両方の表記で返す。
+func nextHintView(sound string) map[string]any {
+	if sound == "" {
+		return nil
+	}
+	return map[string]any{
+		"hiragana": sound,
+		"katakana": shiritori.ToKatakana(sound),
+	}
+}
+
 func wordResultView(r *WordResult) map[string]any {
 	v := map[string]any{
 		"accepted": r.Accepted,
@@ -92,6 +106,9 @@ func wordResultView(r *WordResult) map[string]any {
 	if r.Result != nil {
 		v["result"] = *r.Result
 	}
+	if hint := nextHintView(r.NextRequiredSound); hint != nil {
+		v["next_hint"] = hint
+	}
 	return v
 }
 
@@ -112,6 +129,11 @@ func messageResultView(r *MessageResult) map[string]any {
 	}
 	if r.Result != nil {
 		v["result"] = *r.Result
+	}
+	if r.Status != StatusFinished && r.AIMessage != nil {
+		if hint := nextHintView(r.AIMessage.EndingSound); hint != nil {
+			v["next_hint"] = hint
+		}
 	}
 	return v
 }
