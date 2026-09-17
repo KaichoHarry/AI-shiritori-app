@@ -1,0 +1,32 @@
+# fly.io デプロイ設定
+# アプリ名は `fly launch` 実行時に空いている名前へ自動調整されるか、
+# 事前に `app = "お好きな名前"` に変更してください（世界で一意である必要があります）。
+app = "ai-shiritori-backend"
+primary_region = "nrt"
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # IMAPポーリング(パスワード再設定の管理者承認フロー)がバックグラウンドで
+  # 常時動き続ける必要があるため、リクエストが無くてもマシンを止めない設定にする。
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[checks]
+  [checks.health]
+    type = "http"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
