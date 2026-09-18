@@ -2,8 +2,8 @@
 
 import { ArrowLeft, Bot, ScrollText, User } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -29,7 +29,8 @@ const RESULT_LABELS: Record<string, string> = {
 };
 
 function HistoryDetail() {
-  const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "";
   const { authFetch } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [words, setWords] = useState<WordRecord[] | undefined>(undefined);
@@ -39,6 +40,10 @@ function HistoryDetail() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      setError("セッションIDが指定されていません");
+      return;
+    }
     authFetch((token) => getSessionDetail(token, id))
       .then((res) => {
         setSession(res.session);
@@ -131,7 +136,7 @@ function HistoryDetail() {
   );
 }
 
-export default function HistoryDetailPageClient() {
+export default function HistoryDetailPage() {
   return (
     <RequireAuth>
       <div className="min-h-[calc(100vh-3.5rem)] bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-12">
@@ -140,7 +145,9 @@ export default function HistoryDetailPageClient() {
             <ScrollText className="size-5" />
             <h1 className="text-xl font-semibold">履歴詳細</h1>
           </div>
-          <HistoryDetail />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">読み込み中...</p>}>
+            <HistoryDetail />
+          </Suspense>
         </div>
       </div>
     </RequireAuth>

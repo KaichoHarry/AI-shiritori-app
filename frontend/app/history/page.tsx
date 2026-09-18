@@ -59,7 +59,7 @@ function HistoryList() {
         const meta = MODE_META[s.mode];
         const Icon = meta?.icon ?? User;
         return (
-          <Link key={s.id} href={`/history/${s.id}`}>
+          <Link key={s.id} href={`/history/detail?id=${s.id}`}>
             <Card className="flex-row items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
                 <Icon className="size-4" />
